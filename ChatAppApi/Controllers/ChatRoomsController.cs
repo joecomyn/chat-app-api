@@ -145,5 +145,23 @@ namespace ChatAppApi.Controllers
 
             return chatMessage;
         }
+
+        [HttpDelete("{roomId}/ChatMessages/{chatMessageId}")]
+        public async Task<ActionResult<ChatMessage>> DeleteChatMessage(int roomId, int chatMessageId)
+        {
+            var chatMessage = await _context.ChatMessages
+                .FirstOrDefaultAsync(cm => cm.RoomId == roomId && cm.ChatId == chatMessageId);
+
+            if (chatMessage == null)
+            {
+                return NotFound($"Chat message not found.");
+            }
+
+            _context.ChatMessages.Remove(chatMessage);
+            await _context.SaveChangesAsync();
+
+            return chatMessage;
+        }
+
     }
 }
