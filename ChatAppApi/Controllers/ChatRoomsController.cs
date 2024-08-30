@@ -159,9 +159,44 @@ namespace ChatAppApi.Controllers
 
             _context.ChatMessages.Remove(chatMessage);
             await _context.SaveChangesAsync();
+            await _hubContext.Clients
+                .Group($"Room_{roomId}")
+                .SendAsync("ReceiveDeletedMessage", chatMessage);
 
             return chatMessage;
         }
 
+        [HttpPatch("{roomId}/ChatMessages/{chatMessageId}")]
+        public async Task<ActionResult<ChatMessage>> UpdateChatMessage(int roomId, int chatMessageId, [FromBody] UpdateChatMessageDto updateMessageDto)
+        {
+            var chatMessage = await _context.ChatMessages
+                .FirstOrDefaultAsync(cm => cm.RoomId == roomId && cm.ChatId == chatMessageId);
+
+            if (chatMessage == null)
+            {
+                return NotFound($"Chat message not found.");
+            }
+
+            if (updateMessageDto.MessageBody == null)
+            {
+                return Forbid("Message update body can not be null");
+            }
+
+            chatMessage.MessageBody = updateMessageDto.MessageBody;
+
+            try
+            {
+                _context.ChatMessages.Update(chatMessage);
+                await _context.SaveChangesAsync();
+                await _hubContext.Clients.Group($"Room_{roomId}")
+                    .SendAsync("ReceiveUpdatedMessage", chatMessage);
+
+                return Ok(chatMessage);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, "Error updating chat message.");
+            }
+        }
     }
 }
